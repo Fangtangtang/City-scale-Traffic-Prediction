@@ -107,3 +107,48 @@ $$
 $$
 
 ### [DCRNN:Diffusion Convolutional Recurrent Neural](https://arxiv.org/pdf/1707.01926.pdf)
+
+用带权的邻接矩阵表示图，边权是距离的函数：$\mathcal{G}=(\mathcal{V},\mathcal{E},\mathbf{W})$，用$\mathbf{X}^{(t)}\in\R ^{N\times P}$表示观测的数据。
+
+问题表示为$[\mathbf{X}^{(t-T'+1)},\dots, \mathbf{X}^{(t)};\mathcal{G}]\overset{h(\cdot)}{\to}[\mathbf{X}^{(t+1)},\dots, \mathbf{X}^{(t+T)}]$。
+
+用扩散的过程来表示空间的相关性，用random walk with restart来模拟这一过程。最终的分布为
+$$
+\mathbf{P}=\sum _{k=0}^\infty \alpha (1-\alpha)^k (\mathbf{D}_O^{-1}\mathbf{W})^k\\
+$$
+使用扩散的有限$K$步截断，并为每个步骤分配可训练的权重。同时，还应该包括反向扩散过程。文中用$\mathbf{D}$表示无向图的度矩阵，$\mathbf{D}_O$和$\mathbf{D}_I$表示出度、入度矩阵。
+
+这样，扩散卷积为
+$$
+\mathbf{X}_{:,p\star \theta}=\sum_{k=0}^{K-1}({\theta}_{k,1}(\mathbf{D}_O^{-1}\mathbf{W})^k+\theta_{k,2}(\mathbf{D}_I^{-1}\mathbf{W}^\mathsf{T})^k)\mathbf{X}_{:,p}
+$$
+其中$\theta\in\R^{K\times 2}$是可学习的参数。
+
+定义卷积层为
+$$
+\mathbf{H}_{:,q}=\mathbf{a}\left(\sum_{p=1}^P\mathbf{X}_{:,p\star\Theta_{q,p,:,:}}\right)
+$$
+其中$\Theta\in\R ^{Q\times P\times K\times 2}=[\theta]_{q,p}$，$\mathbf{X}\in\R^{N\times P}$是输入，$\mathbf{H}\in \R^{N\times Q}$是输出。
+
+时间依赖性（DCGRU）：
+
+重置门：$\mathbf{r}^{(t)}=\sigma(\Theta_{r\star\mathcal{G}}[\mathbf{X}^{(t)},\mathbf{H}^{(t-1)}]+\mathbf{b}_r)$
+
+更新门：$\mathbf{u}^{(t)}=\sigma(\Theta_{u\star\mathcal{G}}[\mathbf{X}^{(t)},\mathbf{H}^{(t-1)}]+\mathbf{b}_u)$
+
+隐藏状态：$\mathbf{C}^{(t)}=\tanh(\Theta_{C\star\mathcal{G}}[\mathbf{X}^{(t)},(\mathbf{r}^{(t)}\odot\mathbf{H}^{(t-1)})]+\mathbf{b}_C)$
+
+输出：$\mathbf{H}^{(t)}=\mathbf{u}^{(t)}\odot \mathbf{H}^{(t-1)}+(1-\mathbf{u}^{(t)})\odot \mathbf{C}^{(t)}$
+
+![image-20240331145956259](./pic/image-20240331145956259.png)
+
+解码器和编码器都是带有DCGRU的循环神经网络。
+
+在训练时：将历史序列输出编码器，并用其最终状态初始化解码器，解码器在给定先前的真实值的情况下生成预测。
+
+在测试时：真实值被模型本身生成的预测所替代。
+
+训练和测试输入分布之间的差异会导致性能下降，缓解这个问题：将抽样集成到模型中，在该模型的第 $i$ 次迭代中，向模型提供概率为 $\varepsilon_i$ 的真实值或爱侣为 $1-\varepsilon_i$ 的模型预测值。在训练的过程中，逐渐减小改概率直到 0 ，让模型学习测试分布。
+
+实验中，邻接矩阵的权值为$W_{i,j}=exp(-\frac{dist(v_i, v_j)^2}{\sigma})\cdot (dist(v_i, v_j)< \kappa)$，$\sigma$ 为所有距离的方差。
+
