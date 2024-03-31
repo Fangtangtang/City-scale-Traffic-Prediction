@@ -152,3 +152,36 @@ $$
 
 实验中，邻接矩阵的权值为$W_{i,j}=exp(-\frac{dist(v_i, v_j)^2}{\sigma})\cdot (dist(v_i, v_j)< \kappa)$，$\sigma$ 为所有距离的方差。
 
+### [Graph Wavenet](https://arxiv.org/pdf/1906.00121.pdf)
+
+Graph Convolution Layer:
+$$
+\mathbf{Z}=\sum _{k=0}^K\mathbf{P}^k\mathbf{X}\mathbf{W}_k\\
+\mathbf{P}=\mathbf{A}/rowsum(\mathbf{A})
+$$
+Self-adaptive Adjacency Matrix:
+$$
+\tilde{\mathbf{A}}_{adp}=SoftMax(ReLU(\mathbf{E}_1\mathbf{E}_2^\mathsf{T}))\\
+\mathbf{E}_1,\mathbf{E}_2\in\R^{N\times c}\\
+\mathbf{Z}=\sum _{k=0}^K\mathbf{P}^k\mathbf{X}\mathbf{W}_{k1}+\tilde{\mathbf{A}}^k_{apt}\mathbf{X}\mathbf{W}_{k2}
+$$
+Temporal Convolution Layer:
+
+若考虑一维的输入$\mathbf{x}\in\R ^T$和滤波器$\mathbf{f}\in\R^K$
+$$
+\mathbf{x}\star\mathbf{f}(t)=\sum_{s=0}^{K-1}\mathbf{f}(s)\mathbf{x}(t-d\times s)
+$$
+![image-20240401002933971](./pic/image-20240401002933971.png)
+
+Gated TCNN:
+$$
+input\ \mathcal{X}\in\R^{N\times D\times S}\\
+\mathbf{h}=g(\Theta_1\star\mathcal{X}+\mathbf{b})\odot \sigma(\Theta_2\star\mathcal{X}+\mathbf{c})
+$$
+![image-20240401003208831](./pic/image-20240401003208831.png)
+
+创新点：
+
+1. 提出自学习的邻接矩阵
+2. 使用 TCN 替代循环卷积神经网络，通过堆叠 TCN 获取更大的时间感受野
+
