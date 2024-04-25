@@ -185,3 +185,37 @@ $$
 1. 提出自学习的邻接矩阵
 2. 使用 TCN 替代循环卷积神经网络，通过堆叠 TCN 获取更大的时间感受野
 
+
+
+### [Spatial-Temporal Convolutional Graph Attention Networks(有源码！！)](https://drive.google.com/file/d/17W5HtwR-dW1rvhhZmiUzuczDdQ5vhuW4/view)
+
+![image-20240425004304572](./pic/image-20240425004304572.png)
+
+这篇文章用经纬度划分区块为 $M\times N$ 块，用 $X^i \in \R^{M\times N\times T}$ 来表示流入，$X^o \in \R^{M\times N\times T}$表示流出
+
+为了考虑时间颗粒度，用$X^p\in\R^{M\times N\times T_p}$表示按照$p$时间间隔取出来的流，$p$可以取day或者hour等，在这上面做 self-attention layer，$Q\in\R^{|R|\times d}, K\in \R^{|R|\times d},V\in\R^{|R|\times d}$，$Y^p = softmax(\frac{QK^T}{\sqrt{d}})V\in\R^{|R|\times d}$
+
+下面进入空间注意力，输入为$\tilde{Y}^p = Y^p \cdot W_p, W_p\in \R^{d\times d'}$
+
+注意力系数为
+$$
+\epsilon_{(m,n)(m',n')}=\frac{exp(LeakyReLU(\alpha^T[\tilde{y}^p_{m,n}\|\tilde{y}^p_{m',n'}]))}{\sum_{(m',n')\in N(m,n)}exp(LeakyReLU(\alpha^T[\tilde{y}^p_{m,n}\|\tilde{y}^p_{m',n'}]))}
+$$
+将H个多头注意力集中
+$$
+z^p_{m,n} = \|_{h=1}^H LeakyReLU(\sum _{(m',n')\in N(m,n)}\epsilon^h _{(m,n)(m',n')}\tilde{y}^p_{m,n})
+$$
+Spatial Relation Modeling between Regions：
+
+1. Convolution-based Residual Unit.
+
+   $\tilde{Z}^p = F(Z^p) +Z^p$，其中F是残差层：
+
+   $Z^{p(l+1)}=ReLU(W^{(l)}\ast Z^{p(l)}+b^{(l)})\in \R^{M\times N \times C}$
+
+2. Channel-Aware Recalibration Network.
+
+   $\Lambda^p=\Omega \circ\tilde{Z}^p=\Omega\circ F(Z^p)+Z^p$
+
+$\Lambda =W^{ph}\circ \Lambda ^{ph}+W^{pd}\circ \Lambda ^{pd}+W^{pw}\circ \Lambda ^{pw}$
+
