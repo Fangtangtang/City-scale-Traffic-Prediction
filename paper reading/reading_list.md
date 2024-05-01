@@ -5,4 +5,4 @@ paper reading list by Fangtangtang
 ```
 
 - [Graph WaveNet for Deep Spatial-Temporal Graph Modeling](https://arxiv.org/pdf/1906.00121)
-- 
+- [Are Transformers Effective for Time Series Forecasting?](https://arxiv.org/abs/2205.13504)
