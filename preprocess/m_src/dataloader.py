@@ -115,10 +115,15 @@ class DateLoader:
 MAX_ITERATION = 17855 - 0 + 1
 
 def format_train_data(data:list) -> Union[int, torch.tensor, torch.tensor]:
+    '''
+        Get formatted data
+
+        - line: [time, flow,  condition(3)]
+        - ret[i]: [flow, not_missing_flag, condition]
+    '''
+    
     ret = [[0.0, 0, 3] for _ in range(MAX_ITERATION)]
     for line in data:
-        # line: [time, flow,  condition(3)]
-        # ret[i]: [flow, not_missing_flag, condition]
         ret[line[0]][0], ret[line[0]][1], ret[line[0]][2] = line[1], 1, line[2]
     return data[0][0], torch.tensor(ret, dtype=torch.float32), torch.tensor(data)[:, 1]
 
