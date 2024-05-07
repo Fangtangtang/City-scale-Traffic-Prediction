@@ -1,2 +1,4 @@
 data/raw
+data/
 **/__pycache__
+train/

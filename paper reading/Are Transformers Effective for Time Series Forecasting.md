@@ -49,9 +49,15 @@ $W\in \mathbb{R}^{T\times L}$由历史$L$步预测未来$T$步
 用不同方法预处理： DLinear and NLinear.
 - DLinear
   - when there is a clear trend in the data
+  - 将时间序列分解为趋势序列(Trend Series)和剩余序列(remainder series)，然后使用两个单层线性网络对这两个序列进行建模，以完成预测任务。
+    - ecomposes a raw data input into a trend component by a **moving average kernel** and a **remainder (seasonal) component**
+    - $$X=X_s+X_t$$
+    - $$H_s=W_sX_s\in \mathbb{R}^{T\times C},H_t=W_tX_t\in \mathbb{R}^{T\times C}$$
+    - $$\hat{X}=H_s+H_t$$
 - NLinear
   - when there is a distribution shift in the dataset
 
+![image-202405071](./plot/Transformer_eff2.png)
 ## Appendix
 部分TSF解法
 
