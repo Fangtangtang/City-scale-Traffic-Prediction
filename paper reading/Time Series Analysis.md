@@ -24,11 +24,32 @@ $$
 
 *期望在预处理过程中将时间序列的成分做一个更好的分解？*
 
-以下为对单点的数据（以小时为粒度，取前200小时，缺省值用邻近值补位）做乘性和加性分解使得结果
-![image-202405081](./plot/ts_additive.png)
-![image-202405082](./plot/ts_multiplicative.png)
+以下为对单点的数据（以小时为粒度，取前792小时(33天)，缺省值用邻近值补位）做乘性和加性分解使得结果（更多图像：`./plot`）
+![image-202405082](./plot/decompose_mul_hourly.png)
+![image-202405081](./plot/decompose_add_hourly.png)
 
-简单分析结果是乘性模型分解更好。*这里暂时仅考虑了每天的周期性，从trend中大概能感觉出还有一个按周的周期性，考虑对周信息也做类似操作？*
+分解后，trend还有明显的周期性信息，对trend按日计算，再做一次分解
+![image-202405092](./plot/decompose_mul_daily.png)
+![image-202405091](./plot/decompose_add_daily.png)
+
+
+感觉上乘性分解和加性差距不大，似乎乘性略好一点//目标应该是把周期性信息充分提取，[所以resid越随机越好](https://www.machinelearningplus.com/time-series/time-series-analysis-python/#:~:text=The%20multiplicative%20decomposition%2C%20however%2C%20looks%20quite%20random%20which%20is%20good.)？？
+
+**由于padding方式很不合适，在有padding段的数据上会出问题。**也许考虑使用别的简单模型对padding数据做个预测？
+![image-202405093](./plot/fatal_padding_sample.png)
+
+*这里暂时仅考虑了每天的周期性，从trend中大概能感觉出还有一个按周的周期性，考虑对周信息也做类似操作？*
+
+*另一个想法是手写一个分解，由两个周期序列和一个trend序列*
+
+## How to treat missing values in a time series?
+- 均值（似乎不是很好）
+- 前向、反向
+- knn
+- 周期序列
+- 用模型预测
+- ……
+
 
 # ARIMA(AutoRegressive Integrated Moving Average)
 [link](https://www.machinelearningplus.com/time-series/arima-model-time-series-forecasting-python/)
