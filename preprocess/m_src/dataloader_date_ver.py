@@ -76,11 +76,12 @@ class DateLoader:
         flow_sum=[0] *entry_size
         valid_cnt=[0] *entry_size
 
+        # avg in week
         larger_flow_sum=[0]*24
         larger_valid_cnt=[0] *24
         avg_hourly_flow=[0]*24
 
-        if padding_type=="avg":
+        if padding_type=="avg" or padding_type=="avg2":
             with open(org_path, "r") as fin:
                 cnt=0
                 for line in fin:
@@ -93,19 +94,21 @@ class DateLoader:
                     entry_idx=cnt%entry_size
                     flow_sum[entry_idx]+=line["traffic_flow"]
                     valid_cnt[entry_idx]+=1
+                    # print(line['time'],'\t',cnt%24,'\t',cnt%entry_size)
                     current_time = current_time + timedelta(hours=1)
                     cnt+=1
-
-            for i in range(entry_size):
-                larger_flow_sum[i%24]+=flow_sum[i]
-                larger_valid_cnt[i%24]+=valid_cnt[i]
-            
-            total_avg=sum(larger_flow_sum)/sum(larger_valid_cnt)
-            for i in range(24):
-                if larger_valid_cnt[i]!=0:
-                    avg_hourly_flow[i]=larger_flow_sum[i]/larger_valid_cnt[i]
-                else:
-                    avg_hourly_flow[i]=total_avg
+            if padding_type=="avg":
+                for i in range(entry_size):
+                    larger_flow_sum[i%24]+=flow_sum[i]
+                    larger_valid_cnt[i%24]+=valid_cnt[i]
+                
+                total_avg=sum(larger_flow_sum)/sum(larger_valid_cnt)
+                for i in range(24):
+                    if larger_valid_cnt[i]!=0:
+                        avg_hourly_flow[i]=larger_flow_sum[i]/larger_valid_cnt[i]
+                    else:
+                        avg_hourly_flow[i]=total_avg
+    
 
         current_time=time_beg
         with open(org_path, "r") as fin:
@@ -134,6 +137,7 @@ class DateLoader:
                         current_time = current_time + timedelta(hours=1)
                         cnt+=1
                     f_out.write(line)
+                    # print(line['time'],'\t',cnt%24,'\t',cnt%entry_size)
                     current_time = current_time + timedelta(hours=1)
                     cnt+=1
         
