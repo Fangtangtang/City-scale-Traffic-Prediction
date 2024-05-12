@@ -15,18 +15,27 @@ print(len(test_data.keys())) # 1757
 
 idx_list = list(test_data.keys())
 idx = idx_list[0]
-idx = 5
+idx = 7218
 
 data_loader_with_time=m_src.dataloader_date_ver.DateLoader()
-train_data = data_loader_with_time.load_train_as_dataframes(idx=[idx],padding_type="bak")
+train_data = data_loader_with_time.load_train_as_dataframes(idx=[idx],padding_type="avg")
 
-# df = train_data[idx]
-df = train_data[idx].head(792*5)
+df = train_data[idx]
+df_size = len(df)
 
+# 将 df 的大小调整为 24 的最大整数倍
+new_size = 24 * (df_size // 24)
+
+# 裁剪 DataFrame，使其大小为 24 的最大整数倍
+df = df.iloc[:new_size]
+# df = train_data[idx].head(792*5)
+
+# df.plot()
+# plt.show()
 # Multiplicative Decomposition 
-result_mul_h = seasonal_decompose(df['traffic_flow'], model='multiplicative', extrapolate_trend='freq')
-df_daily = result_mul_h.trend.resample('D').sum()
-result_mul_d = seasonal_decompose(df_daily, model='multiplicative', extrapolate_trend='freq')
+# result_mul_h = seasonal_decompose(df['traffic_flow'], model='multiplicative', extrapolate_trend='freq')
+# df_daily = result_mul_h.trend.resample('D').sum()
+# result_mul_d = seasonal_decompose(df_daily, model='multiplicative', extrapolate_trend='freq')
 
 # print(df_daily)
 # Additive Decomposition
@@ -36,8 +45,8 @@ result_add_d = seasonal_decompose(df_daily, model='additive', extrapolate_trend=
 
 # # Plot
 plt.rcParams.update({'figure.figsize': (10,10)})
-result_mul_h.plot().suptitle('Multiplicative Hourly Decompose', fontsize=22)
-result_mul_d.plot().suptitle('Multiplicative Daily Decompose', fontsize=22)
+# result_mul_h.plot().suptitle('Multiplicative Hourly Decompose', fontsize=22)
+# result_mul_d.plot().suptitle('Multiplicative Daily Decompose', fontsize=22)
 result_add_h.plot().suptitle('Additive Hourly Decompose', fontsize=22)
 result_add_d.plot().suptitle('Additive Daily Decompose', fontsize=22)
 plt.show()

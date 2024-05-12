@@ -35,7 +35,13 @@ $$
 
 感觉上乘性分解和加性差距不大，似乎乘性略好一点//目标应该是把周期性信息充分提取，[所以resid越随机越好](https://www.machinelearningplus.com/time-series/time-series-analysis-python/#:~:text=The%20multiplicative%20decomposition%2C%20however%2C%20looks%20quite%20random%20which%20is%20good.)？？
 
+**数据中存在0，如果不对0做处理，不能使用乘性分解**
+
 **由于padding方式很不合适，在有padding段的数据上会出问题。**也许考虑使用别的简单模型对padding数据做个预测？
+```
+一个奇怪的想法：
+先用一种简朴的方法补全，然后一轮轮迭，拿前一次结果对缺省的位置做预测，作为后面的数据。设计一种衡量指标来筛选。
+```
 ![image-202405093](./plot/fatal_padding_sample.png)
 
 *这里暂时仅考虑了每天的周期性，从trend中大概能感觉出还有一个按周的周期性，考虑对周信息也做类似操作？*
