@@ -4,3 +4,5 @@ train/
 .vscode
 .gitignore
 .git/
+checkpoints/
+results/
