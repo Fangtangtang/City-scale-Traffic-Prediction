@@ -7,13 +7,26 @@ import PatchTST_model
 import pandas as pd
 from torch.utils.data import DataLoader, Dataset
 import json
+from collections import defaultdict
 
 
 class Exp(object):
     def __init__(self, args):
         self.args = args
         self.device = self._acquire_device()
+        self.data_set = DataSet(
+            path="data/train_with_time/{}_avg.jsonl".format(self.args.sensor_id),
+            size=[self.args.seq_len, self.args.label_len, self.args.pred_len],
+        )
+
+        self.args.context_window = len(self.data_set)
+
         self.model = self._build_model().to(self.device)
+
+        print(len(self.data_set))
+        self.data_loader = DataLoader(
+            self.data_set, batch_size=self.args.batch_size, shuffle=True,drop_last=True
+        )
 
     def _build_model(self):
         model = PatchTST_model.Model(
@@ -41,27 +54,14 @@ class Exp(object):
         return device
 
     def _get_data(self, flag):
-
-        data_set = DataSet(
-            path="data/train_with_time/5.jsonl",
-            flag=flag,
-            size=[self.args.seq_len, self.args.label_len, self.args.pred_len],
-        )
-
-        print(flag, len(data_set))
-        data_loader = DataLoader(
-            data_set,
-            batch_size=self.args.batch_size,
-            drop_last=True
-        )
-        return data_set, data_loader
+        return self.data_set, self.data_loader
 
     def vali(self, vali_loader, criterion):
         total_loss = []
         self.model.eval()
         # 不跟踪梯度，加快计算，减少内存消耗
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(vali_loader):
+            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(vali_loader):
                 # put data to device
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
@@ -98,15 +98,16 @@ class Exp(object):
 
         loss_list = []
         for epoch in range(self.args.train_epochs):
-            if epoch%10==0:
-                print(">>>>>>>>>>>>>>>>>>>> Epoch {} <<<<<<<<<<<<<<<<<<<<<".format(epoch))
-            
+            if epoch % 10 == 0:
+                print(
+                    ">>>>>>>>>>>>>>>>>>>> Epoch {} <<<<<<<<<<<<<<<<<<<<<".format(epoch)
+                )
+
             iter_count = 0
             train_loss = []
 
             self.model.train()
-            for i, (batch_x, batch_y) in enumerate(train_loader):
-                # print(batch_x)
+            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(train_loader):
                 iter_count += 1
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
@@ -124,15 +125,24 @@ class Exp(object):
                 loss.backward()
                 model_optim.step()
 
+            print(np.average(train_loss))
             loss_list.append(np.average(train_loss))
+
+            if epoch % 10 == 0:
+                loss_list.append(np.average(train_loss))
+
+            if epoch>0 and epoch % 50 == 0:
+                torch.save(self.model.state_dict(), path + "/" + "checkpoint{}.pth".format(epoch/100))
 
         print(loss_list)
         torch.save(self.model.state_dict(), path + "/" + "checkpoint.pth")
-        # self.model.load_state_dict(torch.load(path + "/" + "checkpoint.pth"))
         return self.model
 
     def test(self, setting, test_model_from_path=0):
         test_data, test_loader = self._get_data(flag="test")
+
+        ans = defaultdict(float)
+        cnt = defaultdict(int)
 
         if test_model_from_path:
             print("loading model")
@@ -150,7 +160,7 @@ class Exp(object):
         self.model.eval()
         # 不跟踪梯度，加快计算，减少内存消耗
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(test_loader):
+            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(test_loader):
                 # put data to device
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
@@ -192,6 +202,9 @@ class Exp(object):
     def predict(self, setting, load_model_from_path=0):
         pred_data, pred_loader = self._get_data(flag="pred")
 
+        ans = defaultdict(float)
+        cnt = defaultdict(int)
+
         if load_model_from_path:
             path = os.path.join(self.args.checkpoints, setting)
             best_model_path = path + "/" + "checkpoint.pth"
@@ -201,7 +214,7 @@ class Exp(object):
 
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(pred_loader):
+            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(pred_loader):
                 # put data to device
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
@@ -214,12 +227,20 @@ class Exp(object):
                 outputs = outputs[:, -self.args.pred_len :, f_dim:]
                 batch_y = batch_y[:, -self.args.pred_len :, f_dim:].to(self.device)
 
-                
                 pred = outputs.detach().cpu().numpy()  # .squeeze()
+
+                for i in range(batch_y.shape[0]):
+                    for j in range(batch_y.shape[1]):
+                        for k in range(batch_y.shape[2]):
+                            cnt[f"{stamp_y[i][j][k]}"] += 1
+                            ans[f"{stamp_y[i][j][k]}"] += pred[i][j][k]
+
                 preds.append(pred)
 
         preds = np.array(preds)
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
+
+        averages = {label: ans[label] / cnt[label] for label in ans}
 
         # result save
         folder_path = "./results/" + setting + "/"
@@ -228,15 +249,15 @@ class Exp(object):
 
         np.save(folder_path + "real_prediction.npy", preds)
 
-        return
+        return averages, pred_data
 
 
 class DataSet(Dataset):
 
     def __init__(self, path, flag="train", size=None, features="S"):
         if size == None:
-            self.seq_len =  16
-            self.label_len =  8
+            self.seq_len = 16
+            self.label_len = 8
             self.pred_len = 4
         else:
             self.seq_len = size[0]
@@ -245,17 +266,27 @@ class DataSet(Dataset):
 
         self.data_x = []
         self.data_y = []
+        self.data_idx = []
+        i = 0
         with open(path, "r") as f:
             for line in f:
                 sample = json.loads(line)
+                i += 1
+                self.data_idx.append(i)
                 self.data_x.append(sample["time"])
                 self.data_y.append(sample["traffic_flow"])
 
-        data = {"time": self.data_x, "flow": self.data_y}
+        data = {"stamp": self.data_x, "flow": self.data_y}
         df = pd.DataFrame(data)
         cols_data = df.columns[1:]
         print(cols_data)
         self.data = df[cols_data].values
+
+        data = {"stamp": self.data_x, "time": self.data_idx}
+        df = pd.DataFrame(data)
+        cols_data = df.columns[1:]
+        print(cols_data)
+        self.stamp = df[cols_data].values
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
@@ -266,4 +297,12 @@ class DataSet(Dataset):
         r_begin = s_end - self.label_len
         r_end = r_begin + self.label_len + self.pred_len
 
-        return self.data[s_begin:s_end], self.data[r_begin:r_end]
+        return (
+            self.data[s_begin:s_end],
+            self.data[r_begin:r_end],
+            self.stamp[s_begin:s_end],
+            self.stamp[r_begin:r_end],
+        )
+
+    def get_data(self):
+        return self.data_y
