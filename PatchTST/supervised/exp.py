@@ -14,8 +14,9 @@ class Exp(object):
     def __init__(self, args):
         self.args = args
         self.device = self._acquire_device()
+        self.channel_list = self.args.sensor_id
         self.data_set = DataSet(
-            path="data/train_with_time/{}_avg.jsonl".format(self.args.sensor_id),
+            self.args.sensor_id,
             size=[self.args.seq_len, self.args.label_len, self.args.pred_len],
         )
 
@@ -25,7 +26,7 @@ class Exp(object):
 
         print(len(self.data_set))
         self.data_loader = DataLoader(
-            self.data_set, batch_size=self.args.batch_size, shuffle=True,drop_last=True
+            self.data_set, batch_size=self.args.batch_size, shuffle=True, drop_last=True
         )
 
     def _build_model(self):
@@ -110,6 +111,7 @@ class Exp(object):
             for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(train_loader):
                 iter_count += 1
                 model_optim.zero_grad()
+              
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
@@ -118,6 +120,7 @@ class Exp(object):
                 f_dim = 0
                 outputs = outputs[:, -self.args.pred_len :, f_dim:]
                 batch_y = batch_y[:, -self.args.pred_len :, f_dim:].to(self.device)
+              
 
                 loss = criterion(outputs, batch_y)
                 train_loss.append(loss.item())
@@ -131,8 +134,11 @@ class Exp(object):
             if epoch % 10 == 0:
                 loss_list.append(np.average(train_loss))
 
-            if epoch>0 and epoch % 50 == 0:
-                torch.save(self.model.state_dict(), path + "/" + "checkpoint{}.pth".format(epoch/100))
+            if epoch > 0 and epoch % 50 == 0:
+                torch.save(
+                    self.model.state_dict(),
+                    path + "/" + "checkpoint{}.pth".format(epoch / 100),
+                )
 
         print(loss_list)
         torch.save(self.model.state_dict(), path + "/" + "checkpoint.pth")
@@ -140,9 +146,6 @@ class Exp(object):
 
     def test(self, setting, test_model_from_path=0):
         test_data, test_loader = self._get_data(flag="test")
-
-        ans = defaultdict(float)
-        cnt = defaultdict(int)
 
         if test_model_from_path:
             print("loading model")
@@ -202,8 +205,15 @@ class Exp(object):
     def predict(self, setting, load_model_from_path=0):
         pred_data, pred_loader = self._get_data(flag="pred")
 
-        ans = defaultdict(float)
-        cnt = defaultdict(int)
+        self.answer_list = {}
+        ans = {}
+        cnt = {}
+        for idx in self.channel_list:
+            self.answer_list[idx] = []
+
+        for i in range(len(self.channel_list)):
+            ans[i] = defaultdict(float)
+            cnt[i] = defaultdict(int)
 
         if load_model_from_path:
             path = os.path.join(self.args.checkpoints, setting)
@@ -229,18 +239,22 @@ class Exp(object):
 
                 pred = outputs.detach().cpu().numpy()  # .squeeze()
 
+            
                 for i in range(batch_y.shape[0]):
                     for j in range(batch_y.shape[1]):
                         for k in range(batch_y.shape[2]):
-                            cnt[f"{stamp_y[i][j][k]}"] += 1
-                            ans[f"{stamp_y[i][j][k]}"] += pred[i][j][k]
+                            # for channel in range(batch_y.shape[2]):
+                            cnt[k][f"{stamp_y[i][j][0]}"] += 1
+                            ans[k][f"{stamp_y[i][j][0]}"] += pred[i][j][k]
 
                 preds.append(pred)
 
         preds = np.array(preds)
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
 
-        averages = {label: ans[label] / cnt[label] for label in ans}
+        for channel in range(len(self.channel_list)):
+            averages = {label: ans[channel][label] / cnt[channel][label] for label in ans[channel]}
+            self.answer_list[self.channel_list[channel]]=averages
 
         # result save
         folder_path = "./results/" + setting + "/"
@@ -249,12 +263,13 @@ class Exp(object):
 
         np.save(folder_path + "real_prediction.npy", preds)
 
-        return averages, pred_data
+        return self.answer_list, pred_data
 
 
 class DataSet(Dataset):
 
-    def __init__(self, path, flag="train", size=None, features="S"):
+    def __init__(self, sensor_id_list, flag="train", size=None, features="S"):
+
         if size == None:
             self.seq_len = 16
             self.label_len = 8
@@ -264,32 +279,43 @@ class DataSet(Dataset):
             self.label_len = size[1]
             self.pred_len = size[2]
 
-        self.data_x = []
-        self.data_y = []
-        self.data_idx = []
-        i = 0
-        with open(path, "r") as f:
-            for line in f:
-                sample = json.loads(line)
-                i += 1
-                self.data_idx.append(i)
-                self.data_x.append(sample["time"])
-                self.data_y.append(sample["traffic_flow"])
+        data={}
+        
+        data_y = []
+        for idx in sensor_id_list:
+            path = "data/train_with_time/{}_avg.jsonl".format(idx)
 
-        data = {"stamp": self.data_x, "flow": self.data_y}
+            # data_x = []
+            data_y = []
+            with open(path, "r") as f:
+                for line in f:
+                    sample = json.loads(line)
+                    # data_x.append(sample["time"])
+                    data_y.append(sample["traffic_flow"])
+
+            data["{}_flow".format(idx)] =  data_y
+
+        self.raw_data=data
+
+        self.data_len=len(data_y)
+        # data["stamp"] =  range(self.data_len)
+
         df = pd.DataFrame(data)
-        cols_data = df.columns[1:]
+        # df.set_index('stamp', inplace=True)
+        # cols_data = df.columns[1:]
+        cols_data = df.columns
         print(cols_data)
         self.data = df[cols_data].values
-
-        data = {"stamp": self.data_x, "time": self.data_idx}
+        data = {
+            "time": range(self.data_len),
+        }
         df = pd.DataFrame(data)
-        cols_data = df.columns[1:]
+        cols_data = df.columns
         print(cols_data)
         self.stamp = df[cols_data].values
 
     def __len__(self):
-        return len(self.data_x) - self.seq_len - self.pred_len + 1
+        return self.data_len - self.seq_len - self.pred_len + 1
 
     def __getitem__(self, index):
         s_begin = index
@@ -297,6 +323,7 @@ class DataSet(Dataset):
         r_begin = s_end - self.label_len
         r_end = r_begin + self.label_len + self.pred_len
 
+        
         return (
             self.data[s_begin:s_end],
             self.data[r_begin:r_end],
@@ -304,5 +331,8 @@ class DataSet(Dataset):
             self.stamp[r_begin:r_end],
         )
 
-    def get_data(self):
-        return self.data_y
+    def raw_data_length(self):
+        return self.data_len
+    
+    def get_raw(self):
+        return self.raw_data

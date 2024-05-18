@@ -43,7 +43,7 @@ class PatchTST_backbone(nn.Module):
         res_attention: bool = True,
         store_attn: bool = False,
         # head
-        individual=False,  # individual layers for each var?
+        individual=True,  # individual layers for each var?
         head_dropout=0,
     ):
 

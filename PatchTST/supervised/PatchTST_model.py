@@ -1,4 +1,4 @@
-__all__ = ['PatchTST']
+__all__ = ["PatchTST"]
 
 from torch import nn
 from torch import Tensor
@@ -6,6 +6,7 @@ from typing import Callable, Optional
 
 from layers.PatchTST_backbone import PatchTST_backbone
 from layers.PatchTST_layers import series_decomp
+
 
 class Model(nn.Module):
 
@@ -41,7 +42,7 @@ class Model(nn.Module):
         res_attention: bool = True,
         store_attn: bool = False,
         # head
-        individual=False,  # individual layers for each var?
+        individual=True,  # individual layers for each var?
         head_dropout=0,
     ):
         super().__init__()
