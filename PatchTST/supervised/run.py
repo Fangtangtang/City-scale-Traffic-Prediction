@@ -25,7 +25,7 @@ args.gpu = 0
 args.checkpoints = "./checkpoints/"
 
 # training paras
-args.train_epochs = 200
+args.train_epochs = 160
 args.learning_rate = 0.0001
 
 # model super paras
