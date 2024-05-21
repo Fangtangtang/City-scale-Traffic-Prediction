@@ -5,6 +5,7 @@ train/
 .gitignore
 .git/
 checkpoints/
+checkpoints_/
 results/
 1.py
 *.json

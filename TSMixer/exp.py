@@ -83,7 +83,6 @@ class Exp(object):
         return total_loss
 
     def train(self, setting):
-        train_loader = self.data_loader
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
             os.makedirs(path)
@@ -98,7 +97,7 @@ class Exp(object):
             train_loss = []
 
             self.model.train()
-            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y, stamp_y) in enumerate(self.data_loader):
                 model_optim.zero_grad()
               
                 batch_x = batch_x.float().to(self.device)
@@ -130,7 +129,6 @@ class Exp(object):
         return self.model
 
     def test(self, setting, test_model_from_path=0):
-        test_loader = self.data_loader
 
         if test_model_from_path:
             print("loading model")
@@ -148,7 +146,7 @@ class Exp(object):
         self.model.eval()
         # 不跟踪梯度，加快计算，减少内存消耗
         with torch.no_grad():
-            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(test_loader):
+            for i, (batch_x, batch_y, stamp_y) in enumerate(self.data_loader):
                 # put data to device
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
@@ -188,7 +186,6 @@ class Exp(object):
         return
 
     def predict(self, setting, load_model_from_path=0):
-        pred_loader =self.data_loader
 
         self.answer_list = {}
         ans = {}
@@ -211,7 +208,7 @@ class Exp(object):
 
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(pred_loader):
+            for i, (batch_x, batch_y, stamp_y) in enumerate(self.data_loader):
                 # put data to device
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
@@ -322,7 +319,6 @@ class DataSet(Dataset):
         return (
             self.data[s_begin:s_end],
             self.data[r_begin:r_end],
-            self.stamp[s_begin:s_end],
             self.stamp[r_begin:r_end],
         )
 
