@@ -6,3 +6,6 @@ train/
 .git/
 checkpoints/
 results/
+1.py
+*.json
+error

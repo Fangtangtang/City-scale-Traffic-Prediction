@@ -10,7 +10,7 @@ use_gpu=True
 
 args = argparse.Namespace()
 
-args.sensor_id = ["5"]
+args.sensor_id = ["4407"]
 
 # configs
 args.use_gpu = True if torch.cuda.is_available() and use_gpu else False
@@ -41,7 +41,7 @@ print(">>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>".format(setting))
 exp.train(setting)
 
 print(">>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<".format(setting))
-pred_result, data = exp.predict(setting, 1)
+pred_result, data = exp.predict(setting,0)
 raw_data_list=data.get_raw()
 # print(pred_result)
 print(pred_result.keys())
@@ -63,7 +63,15 @@ for idx in args.sensor_id:
         else:
             result_list.append(raw_data[i])
 
+
     # print(result_list)
+    predictions = torch.tensor(result_list, dtype=torch.float32)
+    # 真实值
+    targets = torch.tensor(raw_data, dtype=torch.float32)
+    mse_loss = torch.nn.MSELoss()
+
+    loss = mse_loss(predictions, targets)
+    print(loss.item())
     # 创建折线图
     plt.figure(figsize=(10, 5))
     plt.plot(x_values, result_list, marker="o", label="Result")

@@ -31,7 +31,7 @@ class ResBlock(nn.Module):
 
 class Model(nn.Module):
     def __init__(
-        self, encoder_input_size, seq_len, pred_len, e_layers=1, d_model=32, dropout=True
+        self, encoder_input_size, seq_len, pred_len, e_layers=1, d_model=128, dropout=True
     ):
         super(Model, self).__init__()
         # 堆叠层数

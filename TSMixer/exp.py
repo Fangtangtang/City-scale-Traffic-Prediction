@@ -52,9 +52,6 @@ class Exp(object):
             print("Use CPU")
         return device
 
-    def _get_data(self, flag):
-        return self.data_set, self.data_loader
-
     def vali(self, vali_loader, criterion):
         total_loss = []
         self.model.eval()
@@ -86,8 +83,7 @@ class Exp(object):
         return total_loss
 
     def train(self, setting):
-        train_data, train_loader = self._get_data(flag="train")
-
+        train_loader = self.data_loader
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
             os.makedirs(path)
@@ -97,17 +93,12 @@ class Exp(object):
 
         loss_list = []
         for epoch in range(self.args.train_epochs):
-            if epoch % 10 == 0:
-                print(
-                    ">>>>>>>>>>>>>>>>>>>> Epoch {} <<<<<<<<<<<<<<<<<<<<<".format(epoch)
-                )
+                
 
-            iter_count = 0
             train_loss = []
 
             self.model.train()
             for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(train_loader):
-                iter_count += 1
                 model_optim.zero_grad()
               
                 batch_x = batch_x.float().to(self.device)
@@ -126,24 +117,20 @@ class Exp(object):
                 loss.backward()
                 model_optim.step()
 
-            print(np.average(train_loss))
-            loss_list.append(np.average(train_loss))
-
-            if epoch % 10 == 0:
+            if epoch > 0 and epoch % 50 == 0:
+                print(
+                    ">>>>>>>>>>>>>>>>>>>> Epoch {} <<<<<<<<<<<<<<<<<<<<<".format(epoch)
+                )
+                print(np.average(train_loss))
                 loss_list.append(np.average(train_loss))
 
-            if epoch > 0 and epoch % 50 == 0:
-                torch.save(
-                    self.model.state_dict(),
-                    path + "/" + "checkpoint{}.pth".format(epoch / 100),
-                )
+               
 
-        print(loss_list)
         torch.save(self.model.state_dict(), path + "/" + "checkpoint.pth")
         return self.model
 
     def test(self, setting, test_model_from_path=0):
-        test_data, test_loader = self._get_data(flag="test")
+        test_loader = self.data_loader
 
         if test_model_from_path:
             print("loading model")
@@ -201,7 +188,7 @@ class Exp(object):
         return
 
     def predict(self, setting, load_model_from_path=0):
-        pred_data, pred_loader = self._get_data(flag="pred")
+        pred_loader =self.data_loader
 
         self.answer_list = {}
         ans = {}
@@ -219,6 +206,8 @@ class Exp(object):
             self.model.load_state_dict(torch.load(best_model_path))
 
         preds = []
+        criterion = nn.MSELoss()
+        train_loss = []
 
         self.model.eval()
         with torch.no_grad():
@@ -237,6 +226,9 @@ class Exp(object):
 
                 pred = outputs.detach().cpu().numpy()  # .squeeze()
 
+                loss = criterion(outputs, batch_y)
+                train_loss.append(loss.item())
+
             
                 for i in range(batch_y.shape[0]):
                     for j in range(batch_y.shape[1]):
@@ -246,22 +238,29 @@ class Exp(object):
                             ans[k][f"{stamp_y[i][j][0]}"] += pred[i][j][k]
 
                 preds.append(pred)
+                
+            print(np.average(train_loss))
 
         preds = np.array(preds)
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
 
         for channel in range(len(self.channel_list)):
+            idx=self.channel_list[channel]
             averages = {label: ans[channel][label] / cnt[channel][label] for label in ans[channel]}
-            self.answer_list[self.channel_list[channel]]=averages
+            raw_data = self.data_set.get_raw()[f"{idx}_flow"]
+            result=averages
+            result_list = []
 
-        # result save
-        folder_path = "./results/" + setting + "/"
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
+            for i in range(len(raw_data)):
+                if f"{i+1}" in result:
+                    result_list.append(result[f"{i+1}"])
+                else:
+                    result_list.append(raw_data[i])
 
-        np.save(folder_path + "real_prediction.npy", preds)
+            self.answer_list[idx]=result_list
+            
 
-        return self.answer_list, pred_data
+        return self.answer_list
 
 
 class DataSet(Dataset):
@@ -302,14 +301,12 @@ class DataSet(Dataset):
         # df.set_index('stamp', inplace=True)
         # cols_data = df.columns[1:]
         cols_data = df.columns
-        print(cols_data)
         self.data = df[cols_data].values
         data = {
             "time": range(self.data_len),
         }
         df = pd.DataFrame(data)
         cols_data = df.columns
-        print(cols_data)
         self.stamp = df[cols_data].values
 
     def __len__(self):
