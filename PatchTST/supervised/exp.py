@@ -245,8 +245,8 @@ class Exp(object):
             result_list = []
 
             for i in range(len(raw_data)):
-                if f"{i+1}" in result:
-                    result_list.append(result[f"{i+1}"])
+                if f"{i}" in result:
+                    result_list.append(result[f"{i}"])
                 else:
                     result_list.append(raw_data[i])
 
