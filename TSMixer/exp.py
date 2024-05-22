@@ -99,7 +99,6 @@ class Exp(object):
             self.model.train()
             for i, (batch_x, batch_y, stamp_y) in enumerate(self.data_loader):
                 model_optim.zero_grad()
-              
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 

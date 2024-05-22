@@ -54,15 +54,12 @@ class Exp(object):
             print("Use CPU")
         return device
 
-    def _get_data(self, flag):
-        return self.data_set, self.data_loader
-
     def vali(self, vali_loader, criterion):
         total_loss = []
         self.model.eval()
         # 不跟踪梯度，加快计算，减少内存消耗
         with torch.no_grad():
-            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(vali_loader):
+            for i, (batch_x, batch_y, stamp_y) in enumerate(vali_loader):
                 # put data to device
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
@@ -88,7 +85,6 @@ class Exp(object):
         return total_loss
 
     def train(self, setting):
-        train_data, train_loader = self._get_data(flag="train")
 
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
@@ -99,17 +95,12 @@ class Exp(object):
 
         loss_list = []
         for epoch in range(self.args.train_epochs):
-            if epoch % 10 == 0:
-                print(
-                    ">>>>>>>>>>>>>>>>>>>> Epoch {} <<<<<<<<<<<<<<<<<<<<<".format(epoch)
-                )
-
-            iter_count = 0
             train_loss = []
 
             self.model.train()
-            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(train_loader):
-                iter_count += 1
+            for i, (batch_x, batch_y, stamp_y) in enumerate(self.data_loader):
+                print(batch_x.shape)
+                print(batch_y.shape)
                 model_optim.zero_grad()
               
                 batch_x = batch_x.float().to(self.device)
@@ -131,13 +122,11 @@ class Exp(object):
             print(np.average(train_loss))
             loss_list.append(np.average(train_loss))
 
-            if epoch % 10 == 0:
-                loss_list.append(np.average(train_loss))
 
             if epoch > 0 and epoch % 50 == 0:
-                torch.save(
-                    self.model.state_dict(),
-                    path + "/" + "checkpoint{}.pth".format(epoch / 100),
+                loss_list.append(np.average(train_loss))
+                print(
+                    ">>>>>>>>>>>>>>>>>>>> Epoch {} <<<<<<<<<<<<<<<<<<<<<".format(epoch)
                 )
 
         print(loss_list)
@@ -145,7 +134,6 @@ class Exp(object):
         return self.model
 
     def test(self, setting, test_model_from_path=0):
-        test_data, test_loader = self._get_data(flag="test")
 
         if test_model_from_path:
             print("loading model")
@@ -163,7 +151,7 @@ class Exp(object):
         self.model.eval()
         # 不跟踪梯度，加快计算，减少内存消耗
         with torch.no_grad():
-            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(test_loader):
+            for i, (batch_x, batch_y, stamp_y) in enumerate(self.data_loader):
                 # put data to device
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
@@ -203,8 +191,6 @@ class Exp(object):
         return
 
     def predict(self, setting, load_model_from_path=0):
-        pred_data, pred_loader = self._get_data(flag="pred")
-
         self.answer_list = {}
         ans = {}
         cnt = {}
@@ -224,7 +210,7 @@ class Exp(object):
 
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, batch_y, stamp_x, stamp_y) in enumerate(pred_loader):
+            for i, (batch_x, batch_y, stamp_y) in enumerate(self.data_loader):
                 # put data to device
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
@@ -253,17 +239,22 @@ class Exp(object):
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
 
         for channel in range(len(self.channel_list)):
+            idx=self.channel_list[channel]
             averages = {label: ans[channel][label] / cnt[channel][label] for label in ans[channel]}
-            self.answer_list[self.channel_list[channel]]=averages
+            raw_data = self.data_set.get_raw()[f"{idx}_flow"]
+            result=averages
+            result_list = []
 
-        # result save
-        folder_path = "./results/" + setting + "/"
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
+            for i in range(len(raw_data)):
+                if f"{i+1}" in result:
+                    result_list.append(result[f"{i+1}"])
+                else:
+                    result_list.append(raw_data[i])
 
-        np.save(folder_path + "real_prediction.npy", preds)
+            self.answer_list[idx]=result_list
+            
 
-        return self.answer_list, pred_data
+        return self.answer_list
 
 
 class DataSet(Dataset):
@@ -327,7 +318,6 @@ class DataSet(Dataset):
         return (
             self.data[s_begin:s_end],
             self.data[r_begin:r_end],
-            self.stamp[s_begin:s_end],
             self.stamp[r_begin:r_end],
         )
 

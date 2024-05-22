@@ -30,9 +30,9 @@ class PatchTST_backbone(nn.Module):
         pe: str = "zeros",
         learn_pe: bool = True,
         # transformer
-        n_layers: int = 3,
+        n_layers: int = 2,
         d_model=128,
-        n_heads=16,
+        n_heads=32,
         d_k: Optional[int] = None,
         d_v: Optional[int] = None,
         d_ff: int = 256,
@@ -453,7 +453,7 @@ class _MultiheadAttention(nn.Module):
             K = Q
         if V is None:
             V = Q
-
+        print(Q.shape)
         # Linear (+ split in multiple heads)
         q_s = (
             self.W_Q(Q).view(bs, -1, self.n_heads, self.d_k).transpose(1, 2)
@@ -465,6 +465,8 @@ class _MultiheadAttention(nn.Module):
             self.W_V(V).view(bs, -1, self.n_heads, self.d_v).transpose(1, 2)
         )  # v_s    : [bs x n_heads x q_len x d_v]
 
+
+        print(q_s.shape)
         # Apply Scaled Dot-Product Attention (multiple heads)
         if self.res_attention:
             output, attn_weights, attn_scores = self.sdp_attn(
@@ -530,7 +532,9 @@ class _ScaledDotProductAttention(nn.Module):
             attn   : [bs x n_heads x q_len x seq_len]
             scores : [bs x n_heads x q_len x seq_len]
         """
-
+        
+        print(q.shape)
+        print(k.shape)
         # Scaled MatMul (q, k) - similarity scores for all pairs of positions in an input sequence
         attn_scores = (
             torch.matmul(q, k) * self.scale
