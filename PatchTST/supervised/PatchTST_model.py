@@ -29,9 +29,9 @@ class Model(nn.Module):
         pe: str = "zeros",
         learn_pe: bool = True,
         # transformer
-        n_layers: int = 3,
+        n_layers: int = 2,
         d_model=128,
-        n_heads=16,
+        n_heads=64,
         d_k: Optional[int] = None,
         d_v: Optional[int] = None,
         d_ff: int = 256,

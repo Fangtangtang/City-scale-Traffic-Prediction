@@ -26,17 +26,18 @@ args.gpu = 0
 args.checkpoints = "./checkpoints/"
 
 # training paras
-args.train_epochs = 160
+args.train_epochs = 300
 args.learning_rate = 0.0001
 
 # model super paras
 args.decomposition = 0
 args.encoder_input_size = 1
-args.patch_len = 7 
+args.patch_len = 24 
+args.context_window = args.patch_len
 args.stride = 4 
 args.target_window = 1
 args.padding_patch = "end"
-args.batch_size = 64
+args.batch_size = 2048
 args.seq_len = args.patch_len
 args.label_len = 0
 args.pred_len = args.target_window

@@ -15,6 +15,7 @@ class PatchTST_backbone(nn.Module):
     def __init__(
         self,
         encoder_input_size,  # channels: 1 in our case
+        n_layers,
         # patching
         patch_len: int,  # P
         stride: int,  # S
@@ -30,7 +31,6 @@ class PatchTST_backbone(nn.Module):
         pe: str = "zeros",
         learn_pe: bool = True,
         # transformer
-        n_layers: int = 2,
         d_model=128,
         n_heads=32,
         d_k: Optional[int] = None,
@@ -48,7 +48,6 @@ class PatchTST_backbone(nn.Module):
     ):
 
         super().__init__()
-
         # [Input]: encoder_input_size time series of context_window=L
         # ------------------------------------------------------------------------------
         # Norm
@@ -122,15 +121,16 @@ class PatchTST_backbone(nn.Module):
             z = self.RevIN_layer(z, "norm")
             z = z.permute(0, 2, 1)
 
+
         # Patching
         if self.padding_patch == "end":
             z = self.padding_patch_layer(z)
         z = z.unfold(
             dimension=-1, size=self.patch_len, step=self.stride
         )  # z: [bs x nvars x patch_num x patch_len]
-        z = z.permute(0, 1, 3, 2)  # z: [bs x nvars x patch_len x patch_num]
+        z = z.permute(0, 1, 3, 2)  # z: [bs x nvars x patch_len x patch_num] [64, 1, 24, 1]
         # ------------------------------------------------------------------------------
-
+ 
         # ------------------------------------------------------------------------------
         # model
         n_vars = z.shape[1]
@@ -140,15 +140,16 @@ class PatchTST_backbone(nn.Module):
         u = torch.reshape(
             z, (z.shape[0] * z.shape[1], z.shape[2], z.shape[3])
         )  # u: [bs * nvars x patch_num x d_model]
-        u = self.dropout(u + self.W_pos)  # u: [bs * nvars x patch_num x d_model]
-        # ------------------------------------------------------------------------------
-
+        u = self.dropout(u + self.W_pos)  # u: [bs * nvars x patch_num x d_model] [64, 4453, 128]
+        # ------------
+        # ------------------------------------------------------------------
+        
         # ------------------------------------------------------------------------------
         # n transformers
-        # z: [bs * nvars x patch_num x d_model]
+        # z: [bs * nvars x patch_num x d_model] 
         z = self.backbone(u)
         # ------------------------------------------------------------------------------
-
+       
         # ------------------------------------------------------------------------------
         z = torch.reshape(
             z, (-1, n_vars, z.shape[-2], z.shape[-1])
@@ -256,6 +257,7 @@ class TSTEncoder(nn.Module):
         key_padding_mask: Optional[Tensor] = None,
         attn_mask: Optional[Tensor] = None,
     ):
+        
         output = src
         scores = None
         if self.res_attention:
@@ -351,6 +353,8 @@ class TSTEncoderLayer(nn.Module):
     ) -> Tensor:
 
         # Multi-Head attention sublayer
+    
+
         if self.pre_norm:
             src = self.norm_attn(src)
         ## Multi-Head attention
@@ -414,15 +418,16 @@ class _MultiheadAttention(nn.Module):
             mask:    [q_len x q_len]
         """
         super().__init__()
-        d_k = d_model // n_heads if d_k is None else d_k
+        d_k = d_model // n_heads if d_k is None else d_k # 8
         d_v = d_model // n_heads if d_v is None else d_v
+        
 
         self.n_heads, self.d_k, self.d_v = n_heads, d_k, d_v
 
         self.W_Q = nn.Linear(d_model, d_k * n_heads, bias=qkv_bias)
         self.W_K = nn.Linear(d_model, d_k * n_heads, bias=qkv_bias)
         self.W_V = nn.Linear(d_model, d_v * n_heads, bias=qkv_bias)
-
+        
         # Scaled Dot-Product Attention (multiple heads)
         self.res_attention = res_attention
         self.sdp_attn = _ScaledDotProductAttention(
@@ -453,7 +458,6 @@ class _MultiheadAttention(nn.Module):
             K = Q
         if V is None:
             V = Q
-        print(Q.shape)
         # Linear (+ split in multiple heads)
         q_s = (
             self.W_Q(Q).view(bs, -1, self.n_heads, self.d_k).transpose(1, 2)
@@ -466,7 +470,6 @@ class _MultiheadAttention(nn.Module):
         )  # v_s    : [bs x n_heads x q_len x d_v]
 
 
-        print(q_s.shape)
         # Apply Scaled Dot-Product Attention (multiple heads)
         if self.res_attention:
             output, attn_weights, attn_scores = self.sdp_attn(
@@ -533,8 +536,6 @@ class _ScaledDotProductAttention(nn.Module):
             scores : [bs x n_heads x q_len x seq_len]
         """
         
-        print(q.shape)
-        print(k.shape)
         # Scaled MatMul (q, k) - similarity scores for all pairs of positions in an input sequence
         attn_scores = (
             torch.matmul(q, k) * self.scale

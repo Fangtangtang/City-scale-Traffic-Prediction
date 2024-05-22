@@ -20,7 +20,6 @@ class Exp(object):
             size=[self.args.seq_len, self.args.label_len, self.args.pred_len],
         )
 
-        self.args.context_window = len(self.data_set)
 
         self.model = self._build_model().to(self.device)
 
@@ -99,12 +98,12 @@ class Exp(object):
 
             self.model.train()
             for i, (batch_x, batch_y, stamp_y) in enumerate(self.data_loader):
-                print(batch_x.shape)
-                print(batch_y.shape)
+                
                 model_optim.zero_grad()
               
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
+
 
                 outputs = self.model(batch_x)
 
@@ -295,14 +294,12 @@ class DataSet(Dataset):
         # df.set_index('stamp', inplace=True)
         # cols_data = df.columns[1:]
         cols_data = df.columns
-        print(cols_data)
         self.data = df[cols_data].values
         data = {
             "time": range(self.data_len),
         }
         df = pd.DataFrame(data)
         cols_data = df.columns
-        print(cols_data)
         self.stamp = df[cols_data].values
 
     def __len__(self):
