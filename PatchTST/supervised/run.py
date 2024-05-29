@@ -5,17 +5,16 @@ import numpy as np
 from exp import Exp
 import argparse
 import matplotlib.pyplot as plt
-# import  preprocess.m_src as m_src
+import  preprocess.m_src as m_src
 
 ######################################################
 use_gpu=True
 ######################################################
 
-# data_loader = m_src.dataloader.DateLoader()
-# test_data = data_loader.load_test(test_path="data/pre_test.jsonl")
+data_loader = m_src.dataloader.DateLoader()
+test_data = data_loader.load_test(test_path="data/pre_test.jsonl")
 
-# idx_list = list(test_data.keys())
-idx_list = ['40']
+idx_list = list(test_data.keys())
 ans={}
 
 args = argparse.Namespace()
@@ -45,7 +44,7 @@ args.pred_len = args.target_window
 
 for idx in idx_list:
     ans[idx] = []
-    # test_data_for_single = test_data[idx]
+    test_data_for_single = test_data[idx]
 
     args.sensor_id = [idx]
     exp = Exp(args)  # set experiments
@@ -55,14 +54,15 @@ for idx in idx_list:
     print(">>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>".format(setting))
     exp.train(setting)
     print(">>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<".format(setting))
-    # result_list = exp.predict(setting, 0)[idx]
-    results = exp.predict(setting, 0)
+    result_list = exp.predict(setting, 0)[idx]
+    # results = exp.predict(setting, 0)
 
-    # np.save("tst_pred40.npy", np.array(result_list))
+    for k in test_data_for_single:
+        ans[idx].append(result_list[k[0]].item())
 
-    # for k in test_data_for_single:
-    #     ans[idx].append(result_list[k[0]].item())
+    with jsonlines.open(f"ans/ans{idx}.json", "a") as fout:
+            fout.write({idx:ans[idx]})
 
-    with jsonlines.open(f"tst_pred{idx}.json", "a") as fout:
-        fout.write(results) 
+    # with jsonlines.open(f"tst_pred{idx}.json", "a") as fout:
+    #     fout.write(results) 
         # fout.flush()

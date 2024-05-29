@@ -16,7 +16,6 @@ test_data = data_loader.load_test(test_path="data/pre_test.jsonl")
 print(len(test_data.keys())) # 1757
 
 idx_list = list(test_data.keys())
-idx_list = ['5','40']
 
 ans={}
 
@@ -38,24 +37,20 @@ for idx in idx_list:
         time_series = pd.Series(train_data)
 
         model = ARIMA(time_series, order=(5,1,1))
-        # model = pm.auto_arima(time_series, seasonal=True, stepwise=True)
-        # best_model = model.model
 
         model_fit = model.fit()
-        # print(model_fit.summary())
 
         pred = model_fit.predict(start=1, end=17857)
         pred = pred.values.tolist()
-        # # print(len(pred))
-        # for k in test_data_for_single:
-        #     # print(k[0])
-        #     ans[idx].append(pred[k[0]])
 
-        # with jsonlines.open(f"ans_arima_.json", "a") as fout:
-        #     fout.write({idx:ans[idx]}) 
+        for k in test_data_for_single:
+            ans[idx].append(pred[k[0]])
 
-        with jsonlines.open(f"arima_pred{idx}.json", "a") as fout:
-            fout.write({idx:pred}) 
+        with jsonlines.open(f"ans_arima_.json", "a") as fout:
+            fout.write({idx:ans[idx]}) 
+
+        # with jsonlines.open(f"arima_pred{idx}.json", "a") as fout:
+        #     fout.write({idx:pred}) 
 
     except BaseException:
         with open ("error","a") as f:

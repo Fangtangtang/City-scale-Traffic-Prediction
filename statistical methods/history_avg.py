@@ -15,8 +15,8 @@ test_data = data_loader.load_test(test_path="data/pre_test.jsonl")
 
 print(len(test_data.keys())) # 1757
 
-# idx_list = list(test_data.keys())
-idx_list = ['5','40']
+idx_list = list(test_data.keys())
+# idx_list = ['5','40']
 
 ans={}
 
